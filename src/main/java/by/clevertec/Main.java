@@ -10,11 +10,14 @@ import by.clevertec.model.Student;
 import by.clevertec.util.Util;
 
 import java.time.LocalDate;
+import java.util.AbstractMap;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class Main {
@@ -46,13 +49,13 @@ public class Main {
 
     public static void task1() {
         List<Animal> animals = Util.getAnimals();
-        List<Animal> sorted = animals.stream()
+        AtomicInteger counter = new AtomicInteger(1);
+        Map<Integer, List<Animal>> zooAnimalMap = animals.stream()
                 .filter(a -> a.getAge() >= 10 && a.getAge() <= 20)
                 .sorted(Comparator.comparingInt(Animal::getAge))
-                .toList();
-        IntStream.range(0, (int) Math.ceil((double) sorted.size() / 7))
-                .mapToObj(i -> sorted.subList(i * 7, Math.min((i + 1) * 7, sorted.size())))
-                .toList().forEach(System.out::println);
+                .collect(Collectors.groupingByConcurrent(a -> counter.getAndIncrement() / 7));
+        System.out.println("Animals in 3 zoo: " + zooAnimalMap.get(3));
+
     }
 
     public static void task2() {
@@ -184,44 +187,43 @@ public class Main {
 
     public static void task14() {
         List<Car> cars = Util.getCars();
-        final double[] generalProfit = {0.0};
+        Map<String, Predicate<Car>> predicates = getIntegerPredicateMap();
         cars.stream()
-                .collect(Collectors.groupingBy(c -> {
-                    if (c.getCarMake().equals("Jaguar") || c.getColor().equals("White")) {
-                        return "Туркменистан";
-                    } else if (c.getMass() < 1500 && (c.getCarMake().equals("BMW")
-                                                      || c.getCarMake().equals("Lexus")
-                                                      || c.getCarMake().equals("Chrysler")
-                                                      || c.getCarMake().equals("Toyota"))) {
-                        return "Узбекистан";
-                    } else if ((c.getColor().equals("Black") && c.getMass() > 4000)
-                               || c.getCarMake().equals("GMC") || c.getCarMake().equals("Dodge")) {
-                        return "Казахстан";
-                    } else if (c.getReleaseYear() < 1982
-                               || c.getCarModel().equals("Civic")
-                               || c.getCarModel().equals("Cherokee")) {
-                        return "Кыргызстан";
-                    } else if (!(c.getColor().equals("Yellow")
-                                 || c.getColor().equals("Red")
-                                 || c.getColor().equals("Green")
-                                 || c.getColor().equals("Blue"))
-                               || c.getPrice() > 40000) {
-                        return "Россия";
-                    } else if (c.getVin().contains("59")) {
-                        return "Монголия";
-                    } else {
-                        return "None";
-                    }
-                }))
-                .forEach((esh, carz) -> {
-                    if (esh.equals("None")) {
-                        System.out.printf("General profit: %.2f", generalProfit[0]);
-                        return;
-                    }
-                    double sum = carz.stream().mapToDouble(c -> c.getMass() * 7.14).sum();
-                    generalProfit[0] += sum;
-                    System.out.printf("%s: %.2f$\n", esh, sum);
-                });
+                .flatMap(car -> predicates.entrySet().stream()
+                        .filter(entry -> entry.getValue().test(car))
+                        .map(entry -> new AbstractMap.SimpleEntry<>(entry.getKey(), car))
+                )
+                .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())))
+                .entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().stream()
+                                .mapToDouble(car -> car.getMass() * 7.14)
+                                .sum()
+                ))
+                .forEach((path, cost) -> System.out.printf("%s - %.2f\n", path, cost));
+    }
+
+    private static Map<String, Predicate<Car>> getIntegerPredicateMap() {
+        Predicate<Car> first = car -> car.getCarMake().equals("Jaguar") || car.getColor().equals("White");
+        Predicate<Car> second = car -> car.getMass() < 1500 && (car.getCarMake().equals("BMW")
+                                                                || car.getCarMake().equals("Lexus")
+                                                                || car.getCarMake().equals("Chrysler")
+                                                                || car.getCarMake().equals("Toyota"));
+        Predicate<Car> third = car -> (car.getColor().equals("Black") && car.getMass() > 4000)
+                                      || car.getCarMake().equals("GMC") || car.getCarMake().equals("Dodge");
+        Predicate<Car> fourth = car -> car.getReleaseYear() < 1982
+                                       || car.getCarModel().equals("Civic")
+                                       || car.getCarModel().equals("Cherokee");
+        Predicate<Car> fifth = car -> !(car.getColor().equals("Yellow")
+                                        || car.getColor().equals("Red")
+                                        || car.getColor().equals("Green")
+                                        || car.getColor().equals("Blue"))
+                                      || car.getPrice() > 40000;
+        Predicate<Car> sixth = car -> car.getVin().contains("59");
+        return Map.of(
+                "Туркменистан", first, "Узбекистан", second, "Казахстан", third,
+                "Кыргызстан", fourth, "Россия", fifth, "Монголия", sixth);
     }
 
     public static void task15() {
@@ -266,7 +268,10 @@ public class Main {
     public static void task19() {
         List<Examination> examinations = Util.getExaminations();
         List<Student> students = Util.getStudents();
+        Scanner scanner = new Scanner(System.in);
+        String input = scanner.nextLine();
         students.stream()
+                .filter(student -> student.getFaculty().equals(input))
                 .filter(s -> examinations.stream()
                         .filter(e -> e.getStudentId() == s.getId())
                         .allMatch(e -> e.getExam3() > 4))
@@ -276,24 +281,25 @@ public class Main {
     public static void task20() {
         List<Student> students = Util.getStudents();
         List<Examination> examinations = Util.getExaminations();
-        String facultyWithMaxAvg = students.stream()
-                .flatMap(s -> examinations.stream()
-                        .filter(e -> e.getStudentId() == s.getId())
-                        .map(e -> new Object[]{s.getFaculty(), e.getExam1()}))
-                .collect(Collectors.groupingBy(obj -> (String) obj[0],
-                        Collectors.averagingInt(obj -> (int) obj[1])))
+        students.stream()
+                .collect(Collectors.groupingBy(Student::getFaculty, Collectors.averagingDouble(
+                        student -> examinations.stream()
+                                .filter(examination -> examination.getStudentId() == student.getId())
+                                .mapToDouble(Examination::getExam1)
+                                .findFirst()
+                                .orElse(0.0)
+                )))
                 .entrySet().stream()
                 .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
-                .orElseThrow(RuntimeException::new);
-        System.out.println("Faculty with max average score: " + facultyWithMaxAvg);
+                .stream().collect(Collectors.toSet())
+                .forEach(s -> System.out.printf("%s = %.2f", s.getKey(), s.getValue()));
     }
 
     public static void task21() {
         List<Student> students = Util.getStudents();
-        Map<String, Long> group = students.stream()
-                .collect(Collectors.groupingBy(Student::getGroup, Collectors.counting()));
-        System.out.println(group);
+        students.stream()
+                .collect(Collectors.groupingBy(Student::getGroup, Collectors.counting()))
+                .forEach((g, c) -> System.out.println(g + " " + c));
     }
 
     public static Map<String, Integer> task22() {
