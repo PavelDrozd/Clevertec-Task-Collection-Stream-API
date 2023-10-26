@@ -44,7 +44,7 @@ public class Main {
         task19();
         task20();
         task21();
-        System.out.println(task22());
+        task22().forEach((s, i) -> System.out.printf("%s: %d\n", s, i));
     }
 
     public static void task1() {
@@ -91,10 +91,10 @@ public class Main {
 
     public static void task5() {
         List<Animal> animals = Util.getAnimals();
-        animals.stream()
+        boolean isHungarian = animals.stream()
                 .filter(a -> a.getAge() >= 20 && a.getAge() <= 30)
-                .filter(a -> a.getOrigin().equals("Hungarian"))
-                .forEach(System.out::println);
+                .anyMatch(a -> a.getOrigin().equals("Hungarian"));
+        System.out.println("Is there anyone Hungarian: " + isHungarian);
     }
 
     public static void task6() {
@@ -118,7 +118,7 @@ public class Main {
                 .limit(100)
                 .mapToInt(Animal::getAge)
                 .max()
-                .orElseThrow(ArithmeticException::new);
+                .orElseThrow();
         System.out.println("Older animal: " + older);
     }
 
@@ -129,7 +129,7 @@ public class Main {
                 .map(String::toCharArray)
                 .mapToInt(arr -> arr.length)
                 .min()
-                .orElseThrow(ArithmeticException::new);
+                .orElseThrow();
         System.out.println("Min array length: " + minLength);
     }
 
@@ -138,7 +138,7 @@ public class Main {
         int sum = animals.stream()
                 .mapToInt(Animal::getAge)
                 .sum();
-        System.out.println("Sum: " + sum);
+        System.out.println("Sum of ages: " + sum);
     }
 
     public static void task11() {
@@ -147,8 +147,8 @@ public class Main {
                 .filter(a -> a.getOrigin().equals("Indonesian"))
                 .mapToInt(Animal::getAge)
                 .average()
-                .orElseThrow(ArithmeticException::new);
-        System.out.println("Average: " + average);
+                .orElseThrow();
+        System.out.println("Average age in Indonesia: " + average);
     }
 
     public static void task12() {
@@ -188,7 +188,7 @@ public class Main {
     public static void task14() {
         List<Car> cars = Util.getCars();
         Map<String, Predicate<Car>> predicates = getIntegerPredicateMap();
-        cars.stream()
+        Map<String, Double> costs = cars.stream()
                 .flatMap(car -> predicates.entrySet().stream()
                         .filter(entry -> entry.getValue().test(car))
                         .map(entry -> new AbstractMap.SimpleEntry<>(entry.getKey(), car))
@@ -198,10 +198,12 @@ public class Main {
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,
                         entry -> entry.getValue().stream()
-                                .mapToDouble(car -> car.getMass() * 7.14)
+                                .mapToDouble(car -> car.getMass() * 7.14 / 1000)
                                 .sum()
-                ))
-                .forEach((path, cost) -> System.out.printf("%s - %.2f\n", path, cost));
+                ));
+        double sum = costs.values().stream().mapToDouble(Double::doubleValue).sum();
+        costs.forEach((path, cost) -> System.out.printf("%s - %.2f\n", path, cost));
+        System.out.printf("Sum: %.2f", sum);
     }
 
     private static Map<String, Predicate<Car>> getIntegerPredicateMap() {
@@ -229,15 +231,14 @@ public class Main {
     public static void task15() {
         List<Flower> flowers = Util.getFlowers();
         double sum = flowers.stream()
-                .sorted(Comparator.comparing(
-                                Flower::getOrigin).reversed().
+                .sorted(Comparator.comparing(Flower::getOrigin).reversed().
                         thenComparing(Flower::getPrice).reversed().
                         thenComparing(Flower::getWaterConsumptionPerDay).reversed())
                 .filter(f -> f.getCommonName().charAt(0) <= 'S' && f.getCommonName().charAt(0) >= 'C')
                 .filter(Flower::isShadePreferred)
-                .mapToDouble(f -> f.getPrice() + (f.getWaterConsumptionPerDay() * 5 * 365.2425 * 1.39))
+                .mapToDouble(f -> f.getPrice() + (f.getWaterConsumptionPerDay() * 5 * 365 * 1.39))
                 .sum();
-        System.out.println("Sum: " + sum + "$");
+        System.out.printf("Sum: %.2f$", sum);
     }
 
     public static void task16() {
@@ -262,7 +263,7 @@ public class Main {
                 .collect(Collectors.groupingBy(Student::getFaculty, Collectors.averagingDouble(Student::getAge)))
                 .entrySet().stream()
                 .sorted(Comparator.comparingDouble((Map.Entry<String, Double> entry) -> entry.getValue()).reversed())
-                .forEach(entry -> System.out.println(entry.getKey() + ": " + entry.getValue()));
+                .forEach(entry -> System.out.printf("%s: %.3f\n", entry.getKey(), entry.getValue()));
     }
 
     public static void task19() {
@@ -299,7 +300,7 @@ public class Main {
         List<Student> students = Util.getStudents();
         students.stream()
                 .collect(Collectors.groupingBy(Student::getGroup, Collectors.counting()))
-                .forEach((g, c) -> System.out.println(g + " " + c));
+                .forEach((g, c) -> System.out.println(g + ": " + c + " students"));
     }
 
     public static Map<String, Integer> task22() {
